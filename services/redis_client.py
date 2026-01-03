@@ -70,13 +70,19 @@ class RedisClient:
     ) -> Optional[List[int]]:
         """
         Get post IDs from user's timeline (newest first)
-        Returns None if Redis unavailable
+        Returns None if Redis unavailable OR timeline key doesn't exist (cache miss)
+        Returns empty list [] if timeline exists but has no posts
         """
         if not self.is_available():
             return None
         
         try:
             key = f"timeline:{user_id}"
+            
+            # Check if key exists - if not, it's a cache miss
+            if not self.client.exists(key):
+                return None
+            
             # Get posts in reverse order (newest first)
             post_ids = self.client.zrevrange(
                 key, 

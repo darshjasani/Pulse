@@ -178,6 +178,9 @@
             flex: 1;
             padding: 30px;
             max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 70px);
         }
 
         .card {
@@ -267,6 +270,8 @@
         /* Timeline */
         .timeline {
             margin-top: 20px;
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
         }
 
         .post {
@@ -583,6 +588,27 @@
         .timeline {
             transition: opacity 0.3s ease-in-out;
         }
+
+        .loading-more {
+            text-align: center;
+            padding: 20px;
+            color: #8899a6;
+        }
+
+        .loader-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -590,10 +616,10 @@
     <div id="authSection" class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <h1>⚡ Pulse</h1>
-                <p>Scalable Social Feed Platform - System Design Demo</p>
-            </div>
-            
+            <h1>⚡ Pulse</h1>
+            <p>Scalable Social Feed Platform - System Design Demo</p>
+        </div>
+
             <div class="auth-forms">
                 <div class="auth-form">
                     <h3>Login</h3>
@@ -627,10 +653,10 @@
             </div>
             <div id="authMessage"></div>
         </div>
-    </div>
+        </div>
 
     <!-- Main Dashboard -->
-    <div id="appSection" class="hidden">
+        <div id="appSection" class="hidden">
         <!-- Top Navbar -->
         <nav class="navbar">
             <div class="navbar-brand">
@@ -685,28 +711,28 @@
 
             <!-- Main Content -->
             <main class="main-content">
-                <!-- Create Post -->
-                <div class="card">
+            <!-- Create Post -->
+                <div class="card" style="flex-shrink: 0;">
                     <div class="card-title">Create Post</div>
                     <div class="post-composer">
                         <div class="composer-avatar" id="composerAvatar">A</div>
                         <div class="composer-input">
-                            <textarea id="postContent" placeholder="What's on your mind?"></textarea>
+                    <textarea id="postContent" placeholder="What's on your mind?"></textarea>
                             <div class="composer-actions">
-                                <button class="btn" onclick="createPost()">Post</button>
+                    <button class="btn" onclick="createPost()">Post</button>
                             </div>
                         </div>
-                    </div>
-                    <div id="postMessage"></div>
                 </div>
+                <div id="postMessage"></div>
+            </div>
 
-                <!-- Timeline -->
-                <div class="card">
+            <!-- Timeline -->
+                <div class="card" style="flex: 1; display: flex; flex-direction: column;">
                     <div class="card-title">Timeline</div>
-                    <div id="timelineContainer" class="timeline">
-                        <div class="loading">Loading timeline...</div>
-                    </div>
+                    <div id="timelineContainer" class="timeline" style="flex: 1; max-height: none; height: calc(100vh - 400px);">
+                    <div class="loading">Loading timeline...</div>
                 </div>
+            </div>
             </main>
         </div>
     </div>
@@ -717,6 +743,12 @@
         let currentUser = localStorage.getItem('currentUser');
         let timelineInterval = null;
         let lastTimelineData = null;
+        let allPosts = [];
+        let seenPostIds = new Set();
+        let currentOffset = 0;
+        let hasMorePosts = true;
+        let isLoadingPosts = false;
+        const POSTS_PER_PAGE = 20;
 
         // Initialize
         window.onload = function() {
@@ -724,8 +756,40 @@
                 showApp();
                 loadTimeline();
                 startAutoRefresh();
+                setupInfiniteScroll();
             }
         };
+
+        function setupInfiniteScroll() {
+            const container = document.getElementById('timelineContainer');
+            
+            container.addEventListener('scroll', function() {
+                checkAndLoadMore();
+            });
+        }
+
+        function checkAndLoadMore() {
+            const container = document.getElementById('timelineContainer');
+            const scrollTop = container.scrollTop;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            
+            // Load more when user is 100px from bottom
+            if (scrollHeight - scrollTop - clientHeight < 100 && hasMorePosts && !isLoadingPosts) {
+                loadTimeline(false, true);
+            }
+        }
+
+        function checkIfNeedsMorePosts() {
+            // Check if container can scroll, if not, load more posts
+            const container = document.getElementById('timelineContainer');
+            const hasScroll = container.scrollHeight > container.clientHeight;
+            
+            if (!hasScroll && hasMorePosts && !isLoadingPosts && allPosts.length > 0) {
+                // Container doesn't scroll yet, load more posts
+                setTimeout(() => loadTimeline(false, true), 100);
+            }
+        }
 
         function showMessage(elementId, message, type) {
             const el = document.getElementById(elementId);
@@ -819,7 +883,15 @@
 
         function startAutoRefresh() {
             timelineInterval = setInterval(() => {
-                loadTimeline(true);
+                // Only refresh if we're at the top of timeline
+                const container = document.getElementById('timelineContainer');
+                if (container.scrollTop < 100) {
+                    allPosts = [];
+                    seenPostIds.clear();
+                    currentOffset = 0;
+                    hasMorePosts = true;
+                    loadTimeline(true, false);
+                }
             }, 5000);
         }
 
@@ -851,7 +923,12 @@
                 if (response.ok) {
                     document.getElementById('postContent').value = '';
                     showMessage('postMessage', 'Post created!', 'success');
-                    setTimeout(() => loadTimeline(true), 1000);
+                    // Reset timeline to show new post
+                    allPosts = [];
+                    seenPostIds.clear();
+                    currentOffset = 0;
+                    hasMorePosts = true;
+                    setTimeout(() => loadTimeline(false, false), 1000);
                 } else {
                     showMessage('postMessage', 'Failed to create post', 'error');
                 }
@@ -860,72 +937,130 @@
             }
         }
 
-        async function loadTimeline(isAutoRefresh = false) {
+        async function loadTimeline(isAutoRefresh = false, append = false) {
             const container = document.getElementById('timelineContainer');
             
-            if (!isAutoRefresh) {
-                container.innerHTML = '<div class="loading">Loading...</div>';
+            if (isLoadingPosts) return;
+            isLoadingPosts = true;
+            
+            if (!isAutoRefresh && !append) {
+            container.innerHTML = '<div class="loading">Loading...</div>';
+                allPosts = [];
+                seenPostIds.clear();
+                currentOffset = 0;
+                hasMorePosts = true;
+            } else if (append) {
+                // Show loading spinner when appending
+                renderPosts();
             }
 
             try {
-                const response = await fetch(`${API_BASE}/timeline`, {
+                const response = await fetch(`${API_BASE}/timeline?limit=${POSTS_PER_PAGE}&offset=${currentOffset}`, {
                     headers: {'Authorization': `Bearer ${authToken}`}
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     
-                    const currentDataStr = JSON.stringify(data.posts);
-                    if (isAutoRefresh && lastTimelineData === currentDataStr) {
+                    if (append) {
+                        // Filter out duplicate posts
+                        const newPosts = data.posts.filter(post => !seenPostIds.has(post.id));
+                        
+                        // Add new post IDs to seen set
+                        newPosts.forEach(post => seenPostIds.add(post.id));
+                        
+                        // Append only new posts
+                        allPosts = [...allPosts, ...newPosts];
+                        
+                        // If we got 0 new posts (all were duplicates), we've reached the end
+                        if (newPosts.length === 0) {
+                            hasMorePosts = false;
+                        } else {
+                            hasMorePosts = data.posts.length >= POSTS_PER_PAGE && (data.has_more !== false);
+                        }
+                        
+                        currentOffset += POSTS_PER_PAGE;
+                    } else {
+                        // Replace all posts
+                        const currentDataStr = JSON.stringify(data.posts);
+                        if (isAutoRefresh && lastTimelineData === currentDataStr) {
+                            isLoadingPosts = false;
                         return;
+                        }
+                        lastTimelineData = currentDataStr;
+                        
+                        // Clear seen IDs and rebuild
+                        seenPostIds.clear();
+                        data.posts.forEach(post => seenPostIds.add(post.id));
+                        
+                        allPosts = data.posts;
+                        hasMorePosts = data.posts.length >= POSTS_PER_PAGE && (data.has_more !== false);
+                        currentOffset = POSTS_PER_PAGE;
                     }
-                    lastTimelineData = currentDataStr;
                     
-                    if (data.posts.length === 0) {
-                        container.innerHTML = '<div class="loading">No posts yet. Follow some users or create a post!</div>';
-                        return;
-                    }
-
-                    const newHTML = data.posts.map(post => {
-                        const initial = post.author.username.charAt(0).toUpperCase();
-                        return `
-                            <div class="post">
-                                <div class="post-avatar">${initial}</div>
-                                <div class="post-content">
-                                    <div class="post-header">
-                                        <span class="post-author">${post.author.username}</span>
-                                        <span class="post-username">@${post.author.username}</span>
-                                        ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
-                                        <span class="post-date">${formatDate(post.created_at)}</span>
-                                    </div>
-                                    <div class="post-text">${post.content}</div>
-                                    <div class="post-actions">
-                                        <div class="post-action">❤️ Like</div>
-                                        <div class="post-action">💬 Reply</div>
-                                        <div class="post-action">↗️ Share</div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-
-                    if (container.innerHTML !== newHTML) {
-                        container.style.opacity = '0.7';
-                        setTimeout(() => {
-                            container.innerHTML = newHTML;
-                            container.style.opacity = '1';
-                        }, 100);
-                    }
+                    renderPosts();
                 } else {
                     if (!isAutoRefresh) {
-                        container.innerHTML = '<div class="loading">Failed to load timeline</div>';
+                    container.innerHTML = '<div class="loading">Failed to load timeline</div>';
                     }
                 }
             } catch (error) {
                 if (!isAutoRefresh) {
                     container.innerHTML = '<div class="loading">Connection error</div>';
                 }
+            } finally {
+                isLoadingPosts = false;
+                // Re-render to hide spinner after loading completes
+                if (append && allPosts.length > 0) {
+                    renderPosts();
+                }
+                // Check if we need to load more posts to fill the container
+                if (allPosts.length > 0) {
+                    setTimeout(() => checkIfNeedsMorePosts(), 200);
+                }
             }
+        }
+
+        function renderPosts() {
+            const container = document.getElementById('timelineContainer');
+            
+            if (allPosts.length === 0) {
+                container.innerHTML = '<div class="loading">No posts yet. Follow some users or create a post!</div>';
+                return;
+            }
+
+            const postsHTML = allPosts.map(post => {
+                const initial = post.author.username.charAt(0).toUpperCase();
+                return `
+                    <div class="post">
+                        <div class="post-avatar">${initial}</div>
+                        <div class="post-content">
+                            <div class="post-header">
+                                <span class="post-author">${post.author.username}</span>
+                                <span class="post-username">@${post.author.username}</span>
+                                ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
+                                <span class="post-date">${formatDate(post.created_at)}</span>
+                            </div>
+                            <div class="post-text">${post.content}</div>
+                            <div class="post-actions">
+                                <div class="post-action">❤️ Like</div>
+                                <div class="post-action">💬 Reply</div>
+                                <div class="post-action">↗️ Share</div>
+                            </div>
+                            </div>
+                        </div>
+                    `;
+            }).join('');
+
+            // Show spinner only when actively loading more posts
+            let loadingIndicator = '';
+            if (isLoadingPosts) {
+                loadingIndicator = '<div class="loading-more"><div class="loader-spinner"></div></div>';
+            } else if (!hasMorePosts) {
+                loadingIndicator = '<div class="loading-more">No more posts</div>';
+            }
+
+            container.innerHTML = postsHTML + loadingIndicator;
         }
 
         function formatDate(dateString) {
