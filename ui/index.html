@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulse - Social Feed Demo</title>
+    <title>Pulse - Social Feed Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -13,85 +13,428 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f7fa;
             min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .header {
+        /* Top Navigation */
+        .navbar {
             background: white;
-            padding: 30px;
+            border-bottom: 1px solid #e1e8ed;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .navbar-brand {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar-user {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #e1e8ed;
+            color: #333;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #d1d8dd;
+        }
+
+        /* Dashboard Container */
+        .dashboard {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: calc(100vh - 70px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e1e8ed;
+            padding: 20px;
+            position: sticky;
+            top: 70px;
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+        }
+
+        .profile-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 20px;
+            color: white;
             margin-bottom: 20px;
             text-align: center;
         }
 
-        .header h1 {
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: white;
             color: #667eea;
-            font-size: 3em;
-            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 0 auto 15px;
         }
 
-        .header p {
-            color: #666;
-            font-size: 1.1em;
+        .profile-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .profile-username {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .sidebar-nav {
+            margin-top: 20px;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: #f5f7fa;
+        }
+
+        .nav-item.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .nav-icon {
+            font-size: 1.3em;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            max-width: 800px;
         }
 
         .card {
             background: white;
-            padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
             margin-bottom: 20px;
         }
 
-        .card h2 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.5em;
+        /* Create Post */
+        .post-composer {
+            display: flex;
+            gap: 15px;
         }
 
-        .auth-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .composer-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            flex-shrink: 0;
         }
 
-        .auth-form {
+        .composer-input {
+            flex: 1;
+        }
+
+        .composer-input textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 1em;
+            font-family: inherit;
+            min-height: 100px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .composer-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .composer-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Timeline */
+        .timeline {
+            margin-top: 20px;
+        }
+
+        .post {
+            display: flex;
+            gap: 15px;
             padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
+            border-bottom: 1px solid #e1e8ed;
+            transition: background 0.2s;
         }
 
-        .auth-form h3 {
-            margin-bottom: 15px;
+        .post:hover {
+            background: #f9fafb;
+        }
+
+        .post:last-child {
+            border-bottom: none;
+        }
+
+        .post-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            flex-shrink: 0;
+        }
+
+        .post-content {
+            flex: 1;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .post-author {
+            font-weight: 700;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .post-username {
+            color: #8899a6;
+            font-size: 0.9em;
+        }
+
+        .celebrity-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            background: #ffd700;
+            color: #333;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .post-date {
+            color: #8899a6;
+            font-size: 0.85em;
+            margin-left: auto;
+        }
+
+        .post-text {
+            color: #333;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+
+        .post-actions {
+            display: flex;
+            gap: 20px;
+            color: #8899a6;
+            font-size: 0.9em;
+        }
+
+        .post-action {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .post-action:hover {
             color: #667eea;
         }
 
+        /* Auth Section */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .auth-header h1 {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .auth-header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .auth-forms {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .auth-form {
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .auth-form h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+            font-size: 1.5em;
+        }
+
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .input-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: 500;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
         }
 
         .input-group input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
             font-size: 1em;
-            transition: border-color 0.3s;
+            transition: border-color 0.2s;
         }
 
         .input-group input:focus {
@@ -99,20 +442,20 @@
             border-color: #667eea;
         }
 
-        .btn {
+        .btn-auth {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: #667eea;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 1em;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.2s;
         }
 
-        .btn:hover {
+        .btn-auth:hover {
             background: #5568d3;
         }
 
@@ -124,117 +467,12 @@
             background: #5a6268;
         }
 
-        .post-form textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1em;
-            font-family: inherit;
-            min-height: 100px;
-            margin-bottom: 15px;
-            resize: vertical;
-        }
-
-        .post-form textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .timeline {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .post {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-        }
-
-        .post-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-
-        .post-author {
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .post-date {
-            color: #999;
-            font-size: 0.9em;
-        }
-
-        .post-content {
-            color: #333;
-            line-height: 1.5;
-        }
-
-        .celebrity-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #ffd700;
-            color: #333;
-            border-radius: 5px;
-            font-size: 0.8em;
-            margin-left: 8px;
-        }
-
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .metric {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .metric-label {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
-
-        .status {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-
-        .status.healthy {
-            background: #28a745;
-        }
-
-        .status.unavailable {
-            background: #ffc107;
-        }
-
-        .status.unhealthy {
-            background: #dc3545;
-        }
-
+        /* Messages */
         .message {
             padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: 500;
         }
 
         .message.success {
@@ -249,35 +487,114 @@
             border: 1px solid #f5c6cb;
         }
 
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8899a6;
+            font-size: 1em;
+        }
+
         .hidden {
             display: none;
         }
 
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
         }
 
         @media (max-width: 768px) {
-            .auth-section {
+            .navbar {
+                padding: 15px 20px;
+            }
+
+            .navbar-brand {
+                font-size: 1.5em;
+            }
+
+            .dashboard {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: static;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #e1e8ed;
+            }
+
+            .profile-card {
+                display: flex;
+                align-items: center;
+                text-align: left;
+                gap: 15px;
+            }
+
+            .profile-avatar {
+                margin: 0;
+                width: 60px;
+                height: 60px;
+                font-size: 1.5em;
+            }
+
+            .profile-stats {
+                grid-template-columns: repeat(2, 1fr);
+                border-top: none;
+                padding-top: 0;
+                margin-top: 0;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .auth-forms {
                 grid-template-columns: 1fr;
             }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-right {
+                gap: 8px;
+            }
+
+            .navbar-user {
+                display: none;
+            }
+
+            .btn-logout {
+                padding: 8px 12px;
+                font-size: 0.9em;
+            }
+
+            .post-composer {
+                flex-direction: column;
+            }
+
+            .composer-avatar {
+                display: none;
+            }
+        }
+
+        /* Smooth transitions */
+        .timeline {
+            transition: opacity 0.3s ease-in-out;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>⚡ Pulse</h1>
-            <p>Scalable Social Feed Platform - System Design Demo</p>
-        </div>
-
-        <!-- Authentication Section -->
-        <div id="authSection" class="card">
-            <h2>Authentication</h2>
-            <div class="auth-section">
+    <!-- Auth Section -->
+    <div id="authSection" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>⚡ Pulse</h1>
+                <p>Scalable Social Feed Platform - System Design Demo</p>
+            </div>
+            
+            <div class="auth-forms">
                 <div class="auth-form">
                     <h3>Login</h3>
                     <div class="input-group">
@@ -288,7 +605,7 @@
                         <label>Password</label>
                         <input type="password" id="loginPassword" placeholder="password123">
                     </div>
-                    <button class="btn" onclick="login()">Login</button>
+                    <button class="btn-auth" onclick="login()">Login</button>
                 </div>
 
                 <div class="auth-form">
@@ -305,45 +622,92 @@
                         <label>Password</label>
                         <input type="password" id="signupPassword">
                     </div>
-                    <button class="btn btn-secondary" onclick="signup()">Sign Up</button>
+                    <button class="btn-auth btn-secondary" onclick="signup()">Sign Up</button>
                 </div>
             </div>
             <div id="authMessage"></div>
         </div>
+    </div>
 
-        <!-- Main App Section (hidden until logged in) -->
-        <div id="appSection" class="hidden">
-            <!-- User Info -->
-            <div class="card">
-                <h2>Welcome, <span id="currentUser"></span>!</h2>
-                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+    <!-- Main Dashboard -->
+    <div id="appSection" class="hidden">
+        <!-- Top Navbar -->
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <span>⚡</span>
+                <span>Pulse</span>
             </div>
+            <div class="navbar-right">
+                <span class="navbar-user">@<span id="navUsername"></span></span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </nav>
 
-            <!-- Create Post -->
-            <div class="card">
-                <h2>Create Post</h2>
-                <div class="post-form">
-                    <textarea id="postContent" placeholder="What's on your mind?"></textarea>
-                    <button class="btn" onclick="createPost()">Post</button>
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="profile-card">
+                    <div class="profile-avatar" id="sidebarAvatar">A</div>
+                    <div class="profile-name" id="sidebarName">User</div>
+                    <div class="profile-username">@<span id="sidebarUsername"></span></div>
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <div class="stat-value" id="followersCount">0</div>
+                            <div class="stat-label">Followers</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="followingCount">0</div>
+                            <div class="stat-label">Following</div>
+                        </div>
+                    </div>
                 </div>
-                <div id="postMessage"></div>
-            </div>
 
-            <!-- Timeline -->
-            <div class="card">
-                <h2>Timeline</h2>
-                <button class="btn" onclick="loadTimeline()">Refresh Timeline</button>
-                <div id="timelineContainer" class="timeline">
-                    <div class="loading">Loading timeline...</div>
+                <nav class="sidebar-nav">
+                    <div class="nav-item active">
+                        <span class="nav-icon">🏠</span>
+                        <span>Timeline</span>
+                    </div>
+                    <div class="nav-item">
+                        <span class="nav-icon">🔍</span>
+                        <span>Explore</span>
+                    </div>
+                    <div class="nav-item">
+                        <span class="nav-icon">🔥</span>
+                        <span>Trending</span>
+                    </div>
+                    <div class="nav-item">
+                        <span class="nav-icon">👤</span>
+                        <span>Profile</span>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Create Post -->
+                <div class="card">
+                    <div class="card-title">Create Post</div>
+                    <div class="post-composer">
+                        <div class="composer-avatar" id="composerAvatar">A</div>
+                        <div class="composer-input">
+                            <textarea id="postContent" placeholder="What's on your mind?"></textarea>
+                            <div class="composer-actions">
+                                <button class="btn" onclick="createPost()">Post</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="postMessage"></div>
                 </div>
-            </div>
 
-            <!-- System Metrics -->
-            <div class="card">
-                <h2>System Metrics</h2>
-                <button class="btn btn-secondary" onclick="loadMetrics()">Refresh Metrics</button>
-                <div id="metricsContainer"></div>
-            </div>
+                <!-- Timeline -->
+                <div class="card">
+                    <div class="card-title">Timeline</div>
+                    <div id="timelineContainer" class="timeline">
+                        <div class="loading">Loading timeline...</div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -351,13 +715,15 @@
         const API_BASE = 'http://localhost:8000';
         let authToken = localStorage.getItem('authToken');
         let currentUser = localStorage.getItem('currentUser');
+        let timelineInterval = null;
+        let lastTimelineData = null;
 
         // Initialize
         window.onload = function() {
             if (authToken) {
                 showApp();
                 loadTimeline();
-                loadMetrics();
+                startAutoRefresh();
             }
         };
 
@@ -409,7 +775,7 @@
                     localStorage.setItem('currentUser', currentUser);
                     showApp();
                     loadTimeline();
-                    loadMetrics();
+                    startAutoRefresh();
                 } else {
                     showMessage('authMessage', 'Invalid credentials', 'error');
                 }
@@ -419,6 +785,7 @@
         }
 
         function logout() {
+            stopAutoRefresh();
             authToken = null;
             currentUser = null;
             localStorage.removeItem('authToken');
@@ -430,7 +797,37 @@
         function showApp() {
             document.getElementById('authSection').classList.add('hidden');
             document.getElementById('appSection').classList.remove('hidden');
-            document.getElementById('currentUser').textContent = currentUser;
+            
+            // Update user info throughout the UI
+            const initial = currentUser.charAt(0).toUpperCase();
+            document.getElementById('navUsername').textContent = currentUser;
+            document.getElementById('sidebarUsername').textContent = currentUser;
+            document.getElementById('sidebarName').textContent = currentUser;
+            document.getElementById('sidebarAvatar').textContent = initial;
+            document.getElementById('composerAvatar').textContent = initial;
+            
+            // Load user stats
+            loadUserStats();
+        }
+
+        async function loadUserStats() {
+            // This is a placeholder - you'd need to add an API endpoint for user stats
+            // For now, we'll use mock data
+            document.getElementById('followersCount').textContent = '0';
+            document.getElementById('followingCount').textContent = '0';
+        }
+
+        function startAutoRefresh() {
+            timelineInterval = setInterval(() => {
+                loadTimeline(true);
+            }, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (timelineInterval) {
+                clearInterval(timelineInterval);
+                timelineInterval = null;
+            }
         }
 
         async function createPost() {
@@ -454,7 +851,7 @@
                 if (response.ok) {
                     document.getElementById('postContent').value = '';
                     showMessage('postMessage', 'Post created!', 'success');
-                    setTimeout(() => loadTimeline(), 1000);
+                    setTimeout(() => loadTimeline(true), 1000);
                 } else {
                     showMessage('postMessage', 'Failed to create post', 'error');
                 }
@@ -463,9 +860,12 @@
             }
         }
 
-        async function loadTimeline() {
+        async function loadTimeline(isAutoRefresh = false) {
             const container = document.getElementById('timelineContainer');
-            container.innerHTML = '<div class="loading">Loading...</div>';
+            
+            if (!isAutoRefresh) {
+                container.innerHTML = '<div class="loading">Loading...</div>';
+            }
 
             try {
                 const response = await fetch(`${API_BASE}/timeline`, {
@@ -475,82 +875,69 @@
                 if (response.ok) {
                     const data = await response.json();
                     
+                    const currentDataStr = JSON.stringify(data.posts);
+                    if (isAutoRefresh && lastTimelineData === currentDataStr) {
+                        return;
+                    }
+                    lastTimelineData = currentDataStr;
+                    
                     if (data.posts.length === 0) {
                         container.innerHTML = '<div class="loading">No posts yet. Follow some users or create a post!</div>';
                         return;
                     }
 
-                    container.innerHTML = data.posts.map(post => `
-                        <div class="post">
-                            <div class="post-header">
-                                <span class="post-author">
-                                    ${post.author.username}
-                                    ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
-                                </span>
-                                <span class="post-date">${new Date(post.created_at).toLocaleString()}</span>
+                    const newHTML = data.posts.map(post => {
+                        const initial = post.author.username.charAt(0).toUpperCase();
+                        return `
+                            <div class="post">
+                                <div class="post-avatar">${initial}</div>
+                                <div class="post-content">
+                                    <div class="post-header">
+                                        <span class="post-author">${post.author.username}</span>
+                                        <span class="post-username">@${post.author.username}</span>
+                                        ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
+                                        <span class="post-date">${formatDate(post.created_at)}</span>
+                                    </div>
+                                    <div class="post-text">${post.content}</div>
+                                    <div class="post-actions">
+                                        <div class="post-action">❤️ Like</div>
+                                        <div class="post-action">💬 Reply</div>
+                                        <div class="post-action">↗️ Share</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="post-content">${post.content}</div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
 
-                    // Show source indicator
-                    const sourceMsg = data.source === 'cache' ? '⚡ Loaded from cache' : '💾 Loaded from database';
-                    container.insertAdjacentHTML('afterbegin', `<div class="message success">${sourceMsg}</div>`);
+                    if (container.innerHTML !== newHTML) {
+                        container.style.opacity = '0.7';
+                        setTimeout(() => {
+                            container.innerHTML = newHTML;
+                            container.style.opacity = '1';
+                        }, 100);
+                    }
                 } else {
-                    container.innerHTML = '<div class="loading">Failed to load timeline</div>';
+                    if (!isAutoRefresh) {
+                        container.innerHTML = '<div class="loading">Failed to load timeline</div>';
+                    }
                 }
             } catch (error) {
-                container.innerHTML = '<div class="loading">Connection error</div>';
+                if (!isAutoRefresh) {
+                    container.innerHTML = '<div class="loading">Connection error</div>';
+                }
             }
         }
 
-        async function loadMetrics() {
-            try {
-                const [metricsRes, healthRes] = await Promise.all([
-                    fetch(`${API_BASE}/system/metrics`),
-                    fetch(`${API_BASE}/system/health`)
-                ]);
+        function formatDate(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const seconds = Math.floor((now - date) / 1000);
 
-                if (metricsRes.ok && healthRes.ok) {
-                    const metrics = await metricsRes.json();
-                    const health = await healthRes.json();
-
-                    document.getElementById('metricsContainer').innerHTML = `
-                        <div class="metrics">
-                            <div class="metric">
-                                <div class="metric-value">${metrics.total_users}</div>
-                                <div class="metric-label">Users</div>
-                            </div>
-                            <div class="metric">
-                                <div class="metric-value">${metrics.total_posts}</div>
-                                <div class="metric-label">Posts</div>
-                            </div>
-                            <div class="metric">
-                                <div class="metric-value">${metrics.total_follows}</div>
-                                <div class="metric-label">Follows</div>
-                            </div>
-                            <div class="metric">
-                                <div class="metric-value">${metrics.celebrity_users}</div>
-                                <div class="metric-label">Celebrities</div>
-                            </div>
-                        </div>
-                        <div class="metrics" style="margin-top: 15px;">
-                            <div class="metric">
-                                <span class="status ${health.database}"></span>
-                                Database: ${health.database}
-                            </div>
-                            <div class="metric">
-                                <span class="status ${health.redis}"></span>
-                                Redis: ${health.redis}
-                            </div>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Failed to load metrics', error);
-            }
+            if (seconds < 60) return `${seconds}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+            return `${Math.floor(seconds / 86400)}d`;
         }
     </script>
 </body>
 </html>
-
