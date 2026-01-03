@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from services.database import get_db
-from services.schemas import UserResponse, UserProfile, FollowResponse
+from services.schemas import UserResponse, UserProfile, FollowResponse, UserUpdate
 from services.models import User, Follow
 from services.auth import get_current_user
 from services.config import settings
@@ -22,6 +22,64 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)):
     Get current authenticated user's profile
     """
     return current_user
+
+
+@router.put("/me", response_model=UserResponse)
+def update_current_user_profile(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update current authenticated user's profile
+    """
+    # Update fields if provided
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name
+    
+    if user_update.bio is not None:
+        current_user.bio = user_update.bio
+    
+    if user_update.email is not None:
+        # Check if email is already taken
+        existing = db.query(User).filter(
+            User.email == user_update.email,
+            User.id != current_user.id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        current_user.email = user_update.email
+    
+    if user_update.profile_image is not None:
+        current_user.profile_image = user_update.profile_image
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    logger.info(f"User {current_user.username} updated their profile")
+    return current_user
+
+
+@router.get("", response_model=List[UserProfile])
+def list_users(
+    db: Session = Depends(get_db),
+    limit: int = 50,
+    offset: int = 0,
+    search: str = None
+):
+    """
+    List all users (with optional search)
+    """
+    query = db.query(User).filter(User.is_active == True)
+    
+    if search:
+        query = query.filter(User.username.ilike(f"%{search}%"))
+    
+    users = query.order_by(User.follower_count.desc()).offset(offset).limit(limit).all()
+    return users
 
 
 @router.get("/{username}", response_model=UserProfile)
@@ -141,6 +199,23 @@ def unfollow_user(
     db.commit()
     
     logger.info(f"{current_user.username} unfollowed user {user_id}")
+
+
+@router.get("/follow-status/{user_id}")
+def check_follow_status(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if current user is following another user
+    """
+    is_following = db.query(Follow).filter(
+        Follow.follower_id == current_user.id,
+        Follow.following_id == user_id
+    ).first() is not None
+    
+    return {"is_following": is_following}
 
 
 @router.get("/{user_id}/followers", response_model=List[UserProfile])

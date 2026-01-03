@@ -29,6 +29,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: Optional[str]
     bio: Optional[str]
+    profile_image: Optional[str] = "avatar1"
     is_celebrity: bool
     follower_count: int
     following_count: int
@@ -43,11 +44,20 @@ class UserProfile(BaseModel):
     username: str
     full_name: Optional[str]
     bio: Optional[str]
+    profile_image: Optional[str] = "avatar1"
     is_celebrity: bool
     follower_count: int
     following_count: int
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating user profile"""
+    full_name: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = Field(None, max_length=500)
+    email: Optional[EmailStr] = None
+    profile_image: Optional[str] = None
 
 
 # ============= Auth Schemas =============

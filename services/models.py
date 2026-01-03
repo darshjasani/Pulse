@@ -20,6 +20,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(100))
     bio = Column(Text)
+    profile_image = Column(String(255), default="avatar1")  # Stores avatar identifier
     is_active = Column(Boolean, default=True)
     is_celebrity = Column(Boolean, default=False, index=True)
     follower_count = Column(Integer, default=0, index=True)
