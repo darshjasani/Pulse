@@ -18,8 +18,6 @@
 - [Quick Start](#-quick-start)
 - [API Documentation](#-api-documentation)
 - [System Design Deep Dive](#-system-design-deep-dive)
-- [AWS Deployment](#-aws-deployment)
-- [Demo Scenarios](#-demo-scenarios)
 - [Performance & Scaling](#-performance--scaling)
 - [Tradeoffs & Design Decisions](#-tradeoffs--design-decisions)
 
@@ -40,7 +38,7 @@ Pulse is a social feed platform built to demonstrate **real-world system design 
 
 Modern social platforms must serve **low-latency personalized feeds** while handling:
 - High read traffic (millions of timeline requests/sec)
-- Write amplification (one post → millions of timelines)
+- Write amplification (one post to millions of timelines)
 - Hot users (celebrities with millions of followers)
 - Service failures without downtime
 
@@ -85,52 +83,50 @@ Modern social platforms must serve **low-latency personalized feeds** while hand
 ### Data Flow
 
 **Write Path (Normal User):**
-1. User creates post → Saved to PostgreSQL
+1. User creates post, saved to PostgreSQL
 2. Event published to SQS queue
 3. Fan-out worker consumes event
 4. Post pushed to all follower timelines in Redis
-5. ~200ms total latency
 
 **Write Path (Celebrity):**
-1. User creates post → Saved to PostgreSQL
+1. User creates post, saved to PostgreSQL
 2. **No fan-out** (write amplification avoided)
-3. ~10ms total latency
 
 **Read Path:**
-1. Request timeline → Check Redis cache
-2. If cache hit → Return immediately (~50ms)
+1. Request timeline, check Redis cache
+2. If cache hit, return immediately
 3. Pull celebrity posts (always fresh)
-4. Merge & sort by timestamp
-5. If cache miss → Fallback to database (~200ms)
+4. Merge and sort by timestamp
+5. If cache miss, fallback to database
 
 ---
 
 ## ✨ Key Features
 
-### 1. **Hybrid Timeline Architecture**
+### 1. Hybrid Timeline Architecture
 - **Push Model**: Fan-out for normal users (fast reads)
 - **Pull Model**: On-demand for celebrities (prevents write amplification)
 - Best of both worlds
 
-### 2. **Celebrity Detection**
+### 2. Celebrity Detection
 - Automatic threshold detection (100K+ followers)
 - Dynamic flag update
 - Separate handling logic
 
-### 3. **Event-Driven Fan-out**
+### 3. Event-Driven Fan-out
 - Asynchronous processing via SQS
-- Retry logic & idempotency
+- Retry logic and idempotency
 - Decoupled architecture
 
-### 4. **Graceful Degradation**
+### 4. Graceful Degradation
 - Redis down? Fall back to database
 - SQS unavailable? Direct timeline write
 - Always operational
 
-### 5. **Production-Ready Code**
-- Type hints & validation (Pydantic)
+### 5. Production-Ready Code
+- Type hints and validation (Pydantic)
 - Proper error handling
-- Logging & observability
+- Logging and observability
 - Security (JWT, password hashing)
 
 ---
@@ -141,15 +137,15 @@ Modern social platforms must serve **low-latency personalized feeds** while hand
 - **FastAPI** - Modern Python web framework
 - **SQLAlchemy** - ORM for database operations
 - **PostgreSQL** - Primary data store
-- **Redis** - Timeline cache & sorted sets
+- **Redis** - Timeline cache and sorted sets
 - **Pydantic** - Data validation
 
 ### Infrastructure
 - **Docker** - Containerization
 - **Docker Compose** - Local orchestration
 - **AWS SQS** - Message queue
-- **AWS RDS** - Managed PostgreSQL (optional)
-- **AWS EC2** - Compute (for demo)
+- **AWS RDS** - Managed PostgreSQL
+- **AWS EC2** - Compute
 
 ### Frontend
 - **Vanilla JavaScript** - Simple, dependency-free UI
@@ -162,9 +158,9 @@ Modern social platforms must serve **low-latency personalized feeds** while hand
 ### Prerequisites
 - Docker & Docker Compose
 - Python 3.11+
-- (Optional) AWS Account for cloud demo
+- AWS Account (optional for cloud features)
 
-### Local Setup (5 Minutes)
+### Setup
 
 ```bash
 # Clone the repository
@@ -182,140 +178,33 @@ python -m workers.fanout_worker
 
 # Open the UI
 open ui/index.html
-# Or visit: http://localhost:8000/docs
 ```
 
-**Demo Credentials:**
-- Username: `alice`, Password: `password123`
-- Username: `bob`, Password: `password123`
-- Username: `celebrity_user`, Password: `password123`
-
-### Manual Setup
-
-```bash
-# 1. Create .env file
-cp .env.example .env
-
-# 2. Start infrastructure
-docker-compose up -d postgres redis
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Initialize database
-python scripts/init_db.py
-
-# 5. Seed demo data
-python scripts/seed_demo_data.py
-
-# 6. Start services
-uvicorn services.main:app --reload
-python -m workers.fanout_worker
-```
+**Demo Users:** alice, bob, celebrity_user (password: password123)
 
 ---
 
 ## 📚 API Documentation
 
-### Authentication
+### Core Endpoints
 
-**Sign Up**
-```http
-POST /auth/signup
-Content-Type: application/json
+**Authentication**
+- `POST /auth/signup` - Register new user
+- `POST /auth/login` - Login and receive JWT token
 
-{
-  "username": "john",
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
+**Posts**
+- `POST /posts` - Create a new post
+- `GET /timeline` - Get personalized timeline
 
-**Login**
-```http
-POST /auth/login
-Content-Type: application/json
+**Social**
+- `POST /users/follow/{user_id}` - Follow a user
+- `GET /users/{user_id}/followers` - Get user followers
 
-{
-  "username": "john",
-  "password": "password123"
-}
+**System**
+- `GET /system/health` - Health check
+- `GET /system/metrics` - System metrics
 
-Response:
-{
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "token_type": "bearer"
-}
-```
-
-### Posts
-
-**Create Post**
-```http
-POST /posts
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "content": "Hello, Pulse!"
-}
-```
-
-**Get Timeline**
-```http
-GET /timeline
-Authorization: Bearer {token}
-
-Response:
-{
-  "posts": [...],
-  "source": "cache",  // or "database"
-  "has_more": true
-}
-```
-
-### Social
-
-**Follow User**
-```http
-POST /users/follow/{user_id}
-Authorization: Bearer {token}
-```
-
-**Get Followers**
-```http
-GET /users/{user_id}/followers
-```
-
-### System
-
-**Health Check**
-```http
-GET /system/health
-
-Response:
-{
-  "status": "healthy",
-  "database": "healthy",
-  "redis": "healthy",
-  "timestamp": "2025-01-02T..."
-}
-```
-
-**Metrics**
-```http
-GET /system/metrics
-
-Response:
-{
-  "total_users": 150,
-  "total_posts": 1200,
-  "celebrity_users": 5,
-  "redis_available": true
-}
-```
-
-**Full API Documentation:** http://localhost:8000/docs
+**Interactive Documentation:** http://localhost:8000/docs
 
 ---
 
@@ -323,33 +212,30 @@ Response:
 
 ### The Celebrity Problem
 
-**Problem:** A celebrity with 10M followers posts → 10M timeline writes → Database overload
+**Problem:** A celebrity with 10M followers posts, resulting in 10M timeline writes and database overload.
 
 **Traditional Approach (Push Only):**
-- ❌ Write amplification: 1 write → 10M writes
-- ❌ Slow: Takes minutes to fan-out
-- ❌ Expensive: High compute & storage costs
+- Write amplification: 1 write becomes 10M writes
+- Slow: Takes minutes to fan-out
+- Expensive: High compute and storage costs
 
 **Our Solution (Hybrid):**
-- ✅ **Push for normal users** (< 100K followers)
+- **Push for normal users** (< 100K followers)
   - Fast reads (cached)
   - Acceptable write cost
-- ✅ **Pull for celebrities** (> 100K followers)
+- **Pull for celebrities** (> 100K followers)
   - No fan-out
   - Fetched at read time
-  - Fresh & accurate
+  - Fresh and accurate
 
 ### Timeline Architecture
 
 **Sorted Sets in Redis:**
-```python
+```
 Key: "timeline:{user_id}"
 Value: Sorted Set
   - Member: post_id
   - Score: timestamp
-
-ZADD timeline:123 1704268800.0 "post_456"
-ZREVRANGE timeline:123 0 49  # Get 50 latest
 ```
 
 **Why Sorted Sets?**
@@ -368,22 +254,11 @@ Normal       | < 100K         | Push (Fan-out)| Medium     | Low (cached)
 Celebrity    | > 100K         | Pull (On-read)| Low        | Medium
 ```
 
-**Implementation:**
-```python
-if not user.is_celebrity:
-    # Fan-out to followers
-    sqs.publish_event(post_id)
-    worker.fan_out_to_followers()
-else:
-    # Skip fan-out, will be pulled
-    pass
-```
-
 ### Caching Strategy
 
 **L1 Cache (Redis):**
 - Timeline sorted sets
-- TTL: Infinite (size-limited to 1000 posts)
+- Size-limited to 1000 posts per timeline
 - Eviction: ZREMRANGEBYRANK
 
 **Cache Invalidation:**
@@ -393,118 +268,12 @@ else:
 
 **Fallback Chain:**
 ```
-Request → Redis Cache → PostgreSQL → Return
-            ↓ Hit (50ms)   ↓ Miss (200ms)
-```
-
----
-
-## ☁️ AWS Deployment
-
-### Setup AWS Resources
-
-```bash
-# Configure AWS credentials
-aws configure
-
-# Create SQS queue and update .env
-./scripts/setup_aws.sh
-
-# Update .env with your credentials
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/...
-```
-
-### Architecture with AWS
-
-```
-Local Machine:
-  ├── FastAPI (API Server)
-  └── Worker (Fan-out)
-       │
-       ├─→ AWS RDS (PostgreSQL)
-       ├─→ AWS SQS (Message Queue)
-       └─→ Redis (EC2 or ElastiCache)
-```
-
-### Cost Estimate (Monthly)
-
-| Service | Configuration | Cost |
-|---------|---------------|------|
-| RDS     | db.t3.micro   | $15  |
-| SQS     | 1M requests   | Free |
-| EC2     | t2.micro (Redis) | $8  |
-| **Total** |             | **~$25** |
-
-**Stop instances when not demoing to save costs!**
-
----
-
-## 🎬 Demo Scenarios
-
-### Scenario 1: Normal User Flow
-
-```bash
-# 1. Login as Alice
-POST /auth/login {"username": "alice", "password": "password123"}
-
-# 2. Create a post
-POST /posts {"content": "Hello, Pulse!"}
-
-# 3. Check Bob's timeline (who follows Alice)
-GET /timeline (as Bob)
-# Expected: Alice's post appears (from cache)
-
-# 4. Check metrics
-GET /system/metrics
-# Show: Redis available, source = "cache"
-```
-
-### Scenario 2: Celebrity User
-
-```bash
-# 1. Login as celebrity_user (100K+ followers)
-POST /auth/login {"username": "celebrity_user", ...}
-
-# 2. Create a post
-POST /posts {"content": "Celebrity announcement!"}
-# Expected: No fan-out event (check logs)
-
-# 3. View timeline as follower
-GET /timeline (as Alice)
-# Expected: Celebrity post appears (pulled at read time)
-```
-
-### Scenario 3: Graceful Degradation
-
-```bash
-# 1. Stop Redis
-docker-compose stop redis
-
-# 2. Request timeline
-GET /timeline
-# Expected: Still works, source = "database", slower
-
-# 3. Check health
-GET /system/health
-# Shows: Redis "unavailable", Database "healthy"
-
-# 4. Restart Redis
-docker-compose start redis
-# System recovers automatically
+Request -> Redis Cache -> PostgreSQL -> Return
 ```
 
 ---
 
 ## 📊 Performance & Scaling
-
-### Current Performance
-
-- **Timeline Read (Cached):** ~50ms P95
-- **Timeline Read (DB):** ~200ms P95
-- **Post Write (Normal):** ~150ms P95
-- **Post Write (Celebrity):** ~10ms P95
 
 ### Scaling Strategies
 
@@ -521,7 +290,7 @@ Load Balancer
 **Database Scaling:**
 - Read replicas for timeline queries
 - Sharding by user_id
-- Connection pooling (already implemented)
+- Connection pooling
 
 **Cache Scaling:**
 - Redis Cluster (16K slots)
@@ -546,7 +315,7 @@ Load Balancer
 
 ## ⚖️ Tradeoffs & Design Decisions
 
-### 1. **Eventual Consistency**
+### 1. Eventual Consistency
 
 **Decision:** Timelines are eventually consistent
 
@@ -556,11 +325,11 @@ Load Balancer
 - Enables horizontal scaling
 
 **Tradeoff:**
-- ✅ High availability
-- ✅ Better performance
-- ❌ Brief inconsistency (seconds)
+- High availability
+- Better performance
+- Brief inconsistency (seconds)
 
-### 2. **Push vs. Pull**
+### 2. Push vs. Pull
 
 **Decision:** Hybrid approach based on follower count
 
@@ -570,46 +339,46 @@ Load Balancer
 - Handles edge case (celebrities)
 
 **Tradeoff:**
-- ✅ Balanced write/read costs
-- ✅ Scalable
-- ❌ More complexity
+- Balanced write/read costs
+- Scalable
+- More complexity
 
-### 3. **Redis for Timelines**
+### 3. Redis for Timelines
 
 **Decision:** Use Redis sorted sets for timeline cache
 
 **Why:**
-- In-memory → very fast reads
-- Sorted sets → natural fit for timelines
+- In-memory results in very fast reads
+- Sorted sets are natural fit for timelines
 - Simple data structure
 
 **Tradeoff:**
-- ✅ Sub-50ms reads
-- ✅ Simple implementation
-- ❌ Memory cost
-- ❌ Data loss on crash (acceptable)
+- Sub-50ms reads
+- Simple implementation
+- Memory cost
+- Data loss on crash (acceptable)
 
-### 4. **SQS for Events**
+### 4. SQS for Events
 
 **Decision:** Use message queue for fan-out
 
 **Why:**
 - Decouples API from worker
-- Built-in retry & DLQ
+- Built-in retry and DLQ
 - Managed service (no ops)
 
 **Tradeoff:**
-- ✅ Reliability
-- ✅ Scalability
-- ❌ AWS dependency
-- ❌ Latency (seconds)
+- Reliability
+- Scalability
+- AWS dependency
+- Latency (seconds)
 
-### 5. **No Pagination (Yet)**
+### 5. Simple Pagination
 
 **Decision:** Simple offset/limit pagination
 
 **Why:**
-- Sufficient for demo
+- Sufficient for demonstration
 - Easy to understand
 
 **Production would use:**
@@ -619,68 +388,10 @@ Load Balancer
 
 ---
 
-## 🧪 Testing
-
-```bash
-# Run tests (coming soon)
-pytest
-
-# Load testing
-# Install: pip install locust
-locust -f tests/load_test.py
-```
-
----
-
-## 🤝 Contributing
-
-This is a demo project, but feedback and improvements are welcome!
-
----
-
 ## 📄 License
 
-MIT License - Feel free to use for learning and demos
+MIT License - See LICENSE file for details
 
 ---
 
-## 🎤 Presenting This Project
-
-### Key Talking Points
-
-1. **"I built a scalable social feed platform demonstrating production-grade system design."**
-
-2. **"The celebrity problem is a classic distributed systems challenge - I solved it with a hybrid push-pull architecture."**
-
-3. **"Notice how I prioritize availability over consistency - this is a deliberate CAP theorem choice."**
-
-4. **"The system gracefully degrades - Redis goes down, we fall back to database. No hard failures."**
-
-5. **"I can scale horizontally - the API is stateless, workers are stateless, everything can be replicated."**
-
-### Demo Script (5 Minutes)
-
-**Minute 1:** Architecture overview (diagram)
-
-**Minute 2:** Normal user flow (Alice posts → Bob's timeline)
-
-**Minute 3:** Celebrity flow (no fan-out, explain why)
-
-**Minute 4:** Failure handling (kill Redis, still works)
-
-**Minute 5:** Scaling discussion (how to 10x, 100x)
-
----
-
-## 📞 Contact
-
-**Project:** Pulse - Scalable Social Feed Platform
-
-**Purpose:** System Design Interview Preparation
-
-**Built with:** FastAPI, PostgreSQL, Redis, AWS SQS, Docker
-
----
-
-**⚡ Now go build something amazing!**
-
+**Built with FastAPI, PostgreSQL, Redis, AWS SQS, Docker**
