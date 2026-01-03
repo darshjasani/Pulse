@@ -55,8 +55,8 @@ Modern social platforms must serve **low-latency personalized feeds** while hand
 └──────┬──────┘
        │
        ▼
-┌─────────────────────────────────────────┐
-│         FastAPI Application             │
+┌────────────────────────────────────────┐
+│         FastAPI Application            │
 │  ┌─────────┬──────────┬──────────────┐ │
 │  │  Auth   │  Users   │    Posts     │ │
 │  │ Service │ Service  │   Service    │ │
