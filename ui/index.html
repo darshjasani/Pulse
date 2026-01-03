@@ -796,6 +796,12 @@
 
         .profile-posts {
             margin-top: 20px;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+
+        .profile-posts::-webkit-scrollbar {
+            display: none; /* Chrome/Safari/Opera */
         }
 
         /* Edit Profile Modal */
@@ -1192,6 +1198,12 @@
         const POSTS_PER_PAGE = 20;
         let currentUserData = null;
         let currentProfileUser = null; // Store the user whose profile is being viewed
+        
+        // User posts pagination
+        let userPosts = [];
+        let userPostsOffset = 0;
+        let hasMoreUserPosts = true;
+        let isLoadingUserPosts = false;
 
         // Initialize
         window.onload = function() {
@@ -1813,7 +1825,7 @@
                 
                 <div id="postsSection">
                     <div class="card-title">Posts</div>
-                    <div id="userPostsContainer" class="profile-posts">
+                    <div id="userPostsContainer" class="profile-posts" style="overflow-y: auto; max-height: 600px;">
                         <div class="loading">Loading posts...</div>
                     </div>
                 </div>
@@ -1827,8 +1839,9 @@
                 </div>
             `;
             
-            // Load user's posts
+            // Load user's posts and setup scroll
             loadUserPosts(user.id);
+            setTimeout(() => setupUserPostsScroll(), 100);
         }
 
         // Open Edit Profile Modal
@@ -1899,16 +1912,133 @@
         }
 
         // Load User Posts
-        async function loadUserPosts(userId) {
+        async function loadUserPosts(userId, append = false) {
             const container = document.getElementById('userPostsContainer');
             
-            try {
-                // For now, we'll show posts from the timeline
-                // In production, you'd want a dedicated endpoint for user posts
-                container.innerHTML = '<div class="loading">User posts feature coming soon...</div>';
-            } catch (error) {
-                container.innerHTML = '<div class="loading">Failed to load posts</div>';
+            if (isLoadingUserPosts) return;
+            isLoadingUserPosts = true;
+            
+            if (!append) {
+                container.innerHTML = '<div class="loading">Loading posts...</div>';
+                userPosts = [];
+                userPostsOffset = 0;
+                hasMoreUserPosts = true;
+            } else {
+                // Show loading spinner when appending
+                renderUserPosts();
             }
+            
+            try {
+                const response = await fetch(`${API_BASE}/posts/user/${userId}?limit=${POSTS_PER_PAGE}&offset=${userPostsOffset}`);
+                
+                if (response.ok) {
+                    const posts = await response.json();
+                    
+                    if (append) {
+                        userPosts = [...userPosts, ...posts];
+                    } else {
+                        userPosts = posts;
+                    }
+                    
+                    // Update pagination state
+                    hasMoreUserPosts = posts.length >= POSTS_PER_PAGE;
+                    userPostsOffset += POSTS_PER_PAGE;
+                    
+                } else {
+                    if (!append) {
+                        container.innerHTML = '<div class="loading">Failed to load posts</div>';
+                    }
+                    isLoadingUserPosts = false;
+                    return;
+                }
+            } catch (error) {
+                if (!append) {
+                    container.innerHTML = '<div class="loading">Connection error</div>';
+                }
+                isLoadingUserPosts = false;
+                return;
+            }
+            
+            // Set loading to false BEFORE rendering
+            isLoadingUserPosts = false;
+            renderUserPosts();
+            
+            // Check if we need to load more posts to fill the container
+            setTimeout(() => checkIfNeedsMoreUserPosts(), 200);
+        }
+
+        // Check if user posts container needs more posts to fill
+        function checkIfNeedsMoreUserPosts() {
+            const container = document.getElementById('userPostsContainer');
+            if (!container) return;
+            
+            const hasScroll = container.scrollHeight > container.clientHeight;
+            
+            if (!hasScroll && hasMoreUserPosts && !isLoadingUserPosts && userPosts.length > 0 && currentProfileUser) {
+                // Container doesn't scroll yet, load more posts
+                setTimeout(() => loadUserPosts(currentProfileUser.id, true), 100);
+            }
+        }
+
+        // Render User Posts
+        function renderUserPosts() {
+            const container = document.getElementById('userPostsContainer');
+            
+            if (userPosts.length === 0) {
+                container.innerHTML = '<div class="loading">No posts yet</div>';
+                return;
+            }
+            
+            const postsHTML = userPosts.map(post => {
+                const avatar = getAvatarStyle(post.author.profile_image);
+                return `
+                    <div class="post">
+                        <div class="post-avatar" style="background: ${avatar.gradient};">${avatar.emoji}</div>
+                        <div class="post-content">
+                            <div class="post-header">
+                                <span class="post-author">${post.author.username}</span>
+                                <span class="post-username">@${post.author.username}</span>
+                                ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
+                                <span class="post-date">${formatDate(post.created_at)}</span>
+                            </div>
+                            <div class="post-text">${post.content}</div>
+                            <div class="post-actions">
+                                <div class="post-action">❤️ Like</div>
+                                <div class="post-action">💬 Reply</div>
+                                <div class="post-action">↗️ Share</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            let loadingIndicator = '';
+            if (isLoadingUserPosts) {
+                loadingIndicator = '<div class="loading-more"><div class="loader-spinner"></div></div>';
+            } else if (!hasMoreUserPosts) {
+                loadingIndicator = '<div class="loading-more">No more posts</div>';
+            }
+            
+            container.innerHTML = postsHTML + loadingIndicator;
+        }
+
+        // Setup scroll listener for user posts
+        function setupUserPostsScroll() {
+            const container = document.getElementById('userPostsContainer');
+            if (!container) return;
+            
+            container.addEventListener('scroll', function() {
+                const scrollTop = container.scrollTop;
+                const scrollHeight = container.scrollHeight;
+                const clientHeight = container.clientHeight;
+                
+                // Load more when user is 100px from bottom
+                if (scrollHeight - scrollTop - clientHeight < 100 && hasMoreUserPosts && !isLoadingUserPosts) {
+                    if (currentProfileUser) {
+                        loadUserPosts(currentProfileUser.id, true);
+                    }
+                }
+            });
         }
 
         async function loadUserStats() {
