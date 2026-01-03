@@ -1,0 +1,323 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        THE CELEBRITY PROBLEM                                 ║
+║                     (Write Amplification Challenge)                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+SCENARIO: Celebrity with 10 Million Followers Posts
+────────────────────────────────────────────────────
+
+
+❌ NAIVE APPROACH (Push Only):
+═══════════════════════════════
+
+Celebrity posts → Fan-out to ALL followers
+
+    ┌──────────────┐
+    │  Celebrity   │
+    │  Posts Once  │
+    └──────┬───────┘
+           │
+           │ 1 Write
+           ▼
+    ┌──────────────┐
+    │   Database   │
+    │  Save Post   │
+    └──────┬───────┘
+           │
+           │ Fan-out starts...
+           ▼
+    ┌─────────────────────────────────────┐
+    │  Write to 10,000,000 Timelines      │
+    │                                     │
+    │  Timeline 1 ← Post                  │
+    │  Timeline 2 ← Post                  │
+    │  Timeline 3 ← Post                  │
+    │  ...                                │
+    │  Timeline 10,000,000 ← Post         │
+    └─────────────────────────────────────┘
+
+PROBLEMS:
+─────────
+• 10M Redis writes (takes minutes!)
+• Massive CPU/memory usage
+• API timeout (request takes too long)
+• Cost: 10M write operations
+• What if celebrity has 100M followers?
+
+MATH:
+─────
+1 post × 10M followers = 10M timeline writes
+If 1 write = 1ms → 10,000 seconds = 2.7 hours!
+If 1 write costs $0.000001 → $10 per post!
+
+
+✅ PULSE SOLUTION (Hybrid Push-Pull):
+═════════════════════════════════════
+
+Celebrity Detection:
+────────────────────
+IF follower_count >= 100,000:
+    is_celebrity = True
+    strategy = PULL
+ELSE:
+    is_celebrity = False
+    strategy = PUSH
+
+
+CELEBRITY POST (Pull Model):
+────────────────────────────
+
+Celebrity posts → NO fan-out!
+
+    ┌──────────────┐
+    │  Celebrity   │
+    │  Posts Once  │
+    └──────┬───────┘
+           │
+           │ 1 Write
+           ▼
+    ┌──────────────┐
+    │   Database   │
+    │  Save Post   │
+    └──────────────┘
+           
+    ⚡ DONE! (10ms)
+    
+    No fan-out, no timeline writes!
+    
+
+TIMELINE READ (Pull Celebrity Posts):
+──────────────────────────────────────
+
+When follower requests timeline:
+
+    ┌──────────────┐
+    │   Follower   │
+    │ Requests Feed│
+    └──────┬───────┘
+           │
+           ▼
+    ┌─────────────────────────────────┐
+    │  Get Cached Timeline (Redis)    │
+    │  (Normal user posts)            │
+    └──────┬──────────────────────────┘
+           │
+           ▼
+    ┌─────────────────────────────────┐
+    │  Query Celebrity Posts (DB)     │
+    │  WHERE author IN (celebrities)  │
+    │  AND author IN (following)      │
+    │  ORDER BY created_at DESC       │
+    │  LIMIT 20                       │
+    └──────┬──────────────────────────┘
+           │
+           ▼
+    ┌─────────────────────────────────┐
+    │  Merge & Sort by Timestamp      │
+    │  Return Combined Feed           │
+    └─────────────────────────────────┘
+
+
+COMPARISON:
+═══════════
+
+┌────────────────┬─────────────┬─────────────┬──────────────┬──────────────┐
+│ Metric         │ Push Only   │ Pull Only   │ Hybrid (Ours)│ Improvement  │
+├────────────────┼─────────────┼─────────────┼──────────────┼──────────────┤
+│ Write Latency  │ 2.7 hours   │ 10ms        │ 10ms         │ 99.9999%     │
+│ Write Cost     │ $10/post    │ $0.001/post │ $0.001/post  │ 99.99%       │
+│ Read Latency   │ 50ms        │ 200ms       │ 100ms        │ Balanced     │
+│ Read Cost      │ $0.001      │ $0.01       │ $0.005       │ Balanced     │
+│ Consistency    │ Eventual    │ Strong      │ Eventual     │ Acceptable   │
+│ Scalability    │ ❌ Terrible │ ✅ Good     │ ✅ Excellent │ Best         │
+└────────────────┴─────────────┴─────────────┴──────────────┴──────────────┘
+
+
+NORMAL USER POST (Push Model):
+═══════════════════════════════
+
+Normal user (1,000 followers) posts → Fan-out
+
+    ┌──────────────┐
+    │ Normal User  │
+    │  Posts Once  │
+    └──────┬───────┘
+           │
+           │ 1 Write
+           ▼
+    ┌──────────────┐
+    │   Database   │
+    │  Save Post   │
+    └──────┬───────┘
+           │
+           │ Publish Event
+           ▼
+    ┌──────────────┐
+    │   SQS Queue  │
+    └──────┬───────┘
+           │
+           │ Worker Processes
+           ▼
+    ┌─────────────────────────────────┐
+    │  Write to 1,000 Timelines       │
+    │  (Async, batched)               │
+    │                                 │
+    │  Timeline 1 ← Post              │
+    │  Timeline 2 ← Post              │
+    │  ...                            │
+    │  Timeline 1,000 ← Post          │
+    └─────────────────────────────────┘
+
+RESULT:
+───────
+• 1,000 writes (acceptable!)
+• Takes ~1 second (async)
+• Followers get instant updates
+• Cost: $0.001 per post
+
+
+DECISION MATRIX:
+════════════════
+
+┌─────────────────┬──────────────┬──────────────┬─────────────────────────┐
+│ User Type       │ Followers    │ Strategy     │ Reason                  │
+├─────────────────┼──────────────┼──────────────┼─────────────────────────┤
+│ Normal          │ < 100K       │ PUSH         │ Fast reads, cheap write │
+│ Influencer      │ 100K - 1M    │ PULL         │ Avoid write explosion   │
+│ Celebrity       │ > 1M         │ PULL         │ Impossible to fan-out   │
+└─────────────────┴──────────────┴──────────────┴─────────────────────────┘
+
+
+THRESHOLD TUNING:
+═════════════════
+
+The 100K threshold is configurable:
+
+• Lower (10K): More users use pull → Slower reads, faster writes
+• Higher (1M): More users use push → Faster reads, slower writes
+• Optimal: Depends on read/write ratio and infrastructure cost
+
+Current: 100,000 followers (industry standard)
+
+
+REAL-WORLD EXAMPLES:
+════════════════════
+
+Twitter:
+────────
+• Uses hybrid approach
+• Celebrities skip fan-out
+• Normal users get push-based timelines
+• "Home timeline" = cached, "User timeline" = pulled
+
+Instagram:
+──────────
+• Similar hybrid model
+• Additional ranking algorithm
+• Stories use different strategy
+
+Facebook:
+─────────
+• More complex (friends vs. pages)
+• Pages with many followers use pull
+• Friend posts use push
+
+
+KEY INSIGHT:
+════════════
+
+"The celebrity problem isn't about celebrities—it's about write amplification.
+ Any time one action triggers millions of downstream writes, you need a
+ pull-based strategy. The hybrid approach optimizes for the common case
+ (normal users) while handling the edge case (celebrities) gracefully."
+
+
+IMPLEMENTATION IN PULSE:
+═════════════════════════
+
+services/routers/posts.py:
+──────────────────────────
+```python
+def create_post(post_data, current_user, db):
+    # Save post
+    new_post = Post(author_id=current_user.id, content=post_data.content)
+    db.add(new_post)
+    db.commit()
+    
+    # Decision point
+    if not current_user.is_celebrity:
+        # Normal user: publish for fan-out
+        sqs_client.publish_post_created(
+            post_id=new_post.id,
+            author_id=current_user.id,
+            is_celebrity=False,
+            timestamp=new_post.created_at.timestamp()
+        )
+    else:
+        # Celebrity: skip fan-out
+        logger.info(f"Celebrity post, skipping fan-out: {new_post.id}")
+    
+    return new_post
+```
+
+workers/fanout_worker.py:
+─────────────────────────
+```python
+def process_post_created(event):
+    if event['is_celebrity']:
+        # Should never happen, but defensive
+        return True
+    
+    # Get all followers
+    followers = db.query(Follow.follower_id).filter(
+        Follow.following_id == event['author_id']
+    ).all()
+    
+    # Batch write to timelines
+    for follower_id in followers:
+        redis_client.add_to_timeline(
+            follower_id,
+            event['post_id'],
+            event['timestamp']
+        )
+```
+
+services/routers/timeline.py:
+─────────────────────────────
+```python
+def get_timeline(current_user, db):
+    # Get cached timeline (normal users' posts)
+    cached_posts = redis_client.get_timeline(current_user.id)
+    
+    # Get celebrity posts (always pull)
+    celebrity_ids = db.query(User.id).filter(
+        User.id.in_(following_ids),
+        User.is_celebrity == True
+    ).all()
+    
+    celebrity_posts = db.query(Post).filter(
+        Post.author_id.in_(celebrity_ids)
+    ).order_by(Post.created_at.desc()).limit(20).all()
+    
+    # Merge and sort
+    all_posts = merge_sort(cached_posts, celebrity_posts)
+    return all_posts
+```
+
+
+MONITORING:
+═══════════
+
+Key metrics to track:
+
+• Celebrity user count
+• Average fan-out size
+• Fan-out processing time
+• Timeline cache hit rate
+• Celebrity post query time
+
+If celebrity queries become slow:
+→ Add celebrity post cache
+→ Use CDN for popular content
+→ Pre-compute top celebrity posts
+

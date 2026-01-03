@@ -1,0 +1,212 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          PULSE - SYSTEM ARCHITECTURE                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT LAYER                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────┐         ┌─────────────┐         ┌─────────────┐          │
+│  │   Web UI    │         │  Mobile App │         │  API Clients│          │
+│  │ (HTML/JS)   │         │  (Future)   │         │  (cURL, etc)│          │
+│  └──────┬──────┘         └──────┬──────┘         └──────┬──────┘          │
+│         │                       │                        │                  │
+│         └───────────────────────┴────────────────────────┘                  │
+│                                 │                                            │
+└─────────────────────────────────┼────────────────────────────────────────────┘
+                                  │
+                                  │ HTTPS
+                                  │
+┌─────────────────────────────────▼────────────────────────────────────────────┐
+│                           API GATEWAY / LOAD BALANCER                        │
+│                              (AWS ALB - Optional)                            │
+└─────────────────────────────────┬────────────────────────────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+┌───────────────────▼──────────────┐  ┌─────────▼──────────────────────────────┐
+│     API SERVER 1 (Primary)       │  │  API SERVER 2, 3... (Scale Out)        │
+│  ┌────────────────────────────┐  │  │  ┌────────────────────────────┐        │
+│  │   FastAPI Application      │  │  │  │   FastAPI Application      │        │
+│  │                            │  │  │  │                            │        │
+│  │  ┌──────────────────────┐  │  │  │  │  ┌──────────────────────┐  │        │
+│  │  │  Auth Service        │  │  │  │  │  │  Auth Service        │  │        │
+│  │  │  - JWT Validation    │  │  │  │  │  │  - JWT Validation    │  │        │
+│  │  └──────────────────────┘  │  │  │  │  └──────────────────────┘  │        │
+│  │                            │  │  │  │                            │        │
+│  │  ┌──────────────────────┐  │  │  │  │  ┌──────────────────────┐  │        │
+│  │  │  User Service        │  │  │  │  │  │  User Service        │  │        │
+│  │  │  - Profile           │  │  │  │  │  │  - Profile           │  │        │
+│  │  │  - Follow/Unfollow   │  │  │  │  │  │  - Follow/Unfollow   │  │        │
+│  │  └──────────────────────┘  │  │  │  │  └──────────────────────┘  │        │
+│  │                            │  │  │  │                            │        │
+│  │  ┌──────────────────────┐  │  │  │  │  ┌──────────────────────┐  │        │
+│  │  │  Post Service        │  │  │  │  │  │  Post Service        │  │        │
+│  │  │  - Create Post       │  │  │  │  │  │  - Create Post       │  │        │
+│  │  │  - Publish Event     │  │  │  │  │  │  - Publish Event     │  │        │
+│  │  └──────────────────────┘  │  │  │  │  └──────────────────────┘  │        │
+│  │                            │  │  │  │                            │        │
+│  │  ┌──────────────────────┐  │  │  │  │  ┌──────────────────────┐  │        │
+│  │  │  Timeline Service    │  │  │  │  │  │  Timeline Service    │  │        │
+│  │  │  - Hybrid Push/Pull  │  │  │  │  │  │  - Hybrid Push/Pull  │  │        │
+│  │  │  - Cache + DB        │  │  │  │  │  │  - Cache + DB        │  │        │
+│  │  └──────────────────────┘  │  │  │  │  └──────────────────────┘  │        │
+│  │                            │  │  │  │                            │        │
+│  └────────────────────────────┘  │  │  └────────────────────────────┘        │
+└──────────┬───────────────────────┘  └──────────┬─────────────────────────────┘
+           │                                     │
+           │                                     │
+           └─────────────┬───────────────────────┘
+                         │
+         ┌───────────────┼───────────────────────────────────┐
+         │               │                                   │
+         │               │                                   │
+┌────────▼────────┐  ┌───▼────────────┐  ┌─────────────────▼──────────────────┐
+│  REDIS CACHE    │  │  AWS SQS       │  │  POSTGRESQL DATABASE               │
+│  (Timeline)     │  │  (Events)      │  │  (Primary Data Store)              │
+│                 │  │                │  │                                    │
+│  ┌───────────┐  │  │  ┌──────────┐  │  │  ┌────────┐  ┌────────┐  ┌──────┐ │
+│  │timeline:1 │  │  │  │post_     │  │  │  │ users  │  │ posts  │  │follows│ │
+│  │timeline:2 │  │  │  │created   │  │  │  │        │  │        │  │       │ │
+│  │timeline:3 │  │  │  │events    │  │  │  │ id     │  │ id     │  │ id    │ │
+│  │   ...     │  │  │  │          │  │  │  │ name   │  │ content│  │ user  │ │
+│  └───────────┘  │  │  └────┬─────┘  │  │  │ email  │  │ author │  │ follow│ │
+│                 │  │       │        │  │  └────────┘  └────────┘  └──────┘ │
+│  Sorted Sets   │  │       │        │  │                                    │
+│  (post_id:     │  │       │        │  │  Indexes: username, email,         │
+│   timestamp)   │  │       │        │  │           author_id, created_at    │
+└─────────────────┘  └───────┼────────┘  └────────────────────────────────────┘
+                             │
+                             │ Long Polling (20s)
+                             │
+                    ┌────────▼─────────┐
+                    │  WORKER POOL     │
+                    │                  │
+                    │  ┌────────────┐  │
+                    │  │ Worker 1   │  │
+                    │  │ (Fan-out)  │  │
+                    │  └────────────┘  │
+                    │                  │
+                    │  ┌────────────┐  │
+                    │  │ Worker 2   │  │
+                    │  │ (Fan-out)  │  │
+                    │  └────────────┘  │
+                    │                  │
+                    │  ┌────────────┐  │
+                    │  │ Worker N   │  │
+                    │  │ (Scale Out)│  │
+                    │  └────────────┘  │
+                    └──────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              DATA FLOW                                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+WRITE PATH (Normal User):
+─────────────────────────
+1. User creates post → API
+2. Save to PostgreSQL
+3. Publish event to SQS
+4. Return 201 Created (fast!)
+5. Worker picks up event
+6. Query followers from DB
+7. Write to each follower's Redis timeline
+8. Delete SQS message
+
+Timeline: ~150ms API response, fan-out happens async
+
+
+WRITE PATH (Celebrity):
+───────────────────────
+1. User creates post → API
+2. Save to PostgreSQL
+3. Skip SQS (no fan-out!)
+4. Return 201 Created (very fast!)
+
+Timeline: ~10ms API response, no fan-out
+
+
+READ PATH (Timeline):
+─────────────────────
+1. User requests timeline → API
+2. Check Redis cache
+   ├─ HIT: Get post IDs (sorted by time)
+   └─ MISS: Query DB for followed posts
+3. Pull celebrity posts (always fresh)
+4. Merge and sort by timestamp
+5. Return posts
+
+Timeline: ~50ms (cached) or ~200ms (DB)
+
+
+FOLLOW/UNFOLLOW:
+────────────────
+1. User follows another → API
+2. Create follow record in DB
+3. Update follower counts
+4. Check celebrity threshold (100K)
+5. Clear follower's timeline cache
+6. Next timeline request rebuilds cache
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          FAILURE SCENARIOS                                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Redis Failure:
+──────────────
+✓ Timeline requests fall back to database
+✓ Slower (200ms) but functional
+✓ Auto-recovery when Redis returns
+
+SQS Failure:
+────────────
+✓ API writes directly to author's timeline
+✓ Fan-out skipped temporarily
+✓ Posts still visible to author
+
+Worker Failure:
+───────────────
+✓ SQS retries message (visibility timeout)
+✓ Other workers pick up messages
+✓ Dead letter queue after 3 failures
+
+Database Failure:
+─────────────────
+✓ Connection pool retries
+✓ Read replicas for queries
+✓ Graceful error responses
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          SCALING STRATEGY                                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+API Layer:
+──────────
+• Stateless design → Horizontal scaling
+• Load balancer distributes requests
+• Auto-scale on CPU/request count
+
+Database:
+─────────
+• Read replicas (route reads to replicas)
+• Sharding by user_id (4-8 shards)
+• Connection pooling (10 per instance)
+
+Cache:
+──────
+• Redis Cluster (16,384 slots)
+• Shard by user_id hash
+• Read replicas for hot keys
+
+Workers:
+────────
+• Multiple workers per queue
+• Auto-scale on queue depth
+• Parallel processing (SQS handles dedup)
+
+Queue:
+──────
+• SQS auto-scales
+• FIFO for ordered processing
+• DLQ for failed messages
+

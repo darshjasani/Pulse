@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse - Social Feed Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .auth-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .auth-form {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .auth-form h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .post-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            min-height: 100px;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+
+        .post-form textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .timeline {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .post {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .post-author {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .post-date {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .post-content {
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .celebrity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #ffd700;
+            color: #333;
+            border-radius: 5px;
+            font-size: 0.8em;
+            margin-left: 8px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status.healthy {
+            background: #28a745;
+        }
+
+        .status.unavailable {
+            background: #ffc107;
+        }
+
+        .status.unhealthy {
+            background: #dc3545;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .auth-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ Pulse</h1>
+            <p>Scalable Social Feed Platform - System Design Demo</p>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="authSection" class="card">
+            <h2>Authentication</h2>
+            <div class="auth-section">
+                <div class="auth-form">
+                    <h3>Login</h3>
+                    <div class="input-group">
+                        <label>Username</label>
+                        <input type="text" id="loginUsername" placeholder="alice">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="password123">
+                    </div>
+                    <button class="btn" onclick="login()">Login</button>
+                </div>
+
+                <div class="auth-form">
+                    <h3>Sign Up</h3>
+                    <div class="input-group">
+                        <label>Username</label>
+                        <input type="text" id="signupUsername">
+                    </div>
+                    <div class="input-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword">
+                    </div>
+                    <button class="btn btn-secondary" onclick="signup()">Sign Up</button>
+                </div>
+            </div>
+            <div id="authMessage"></div>
+        </div>
+
+        <!-- Main App Section (hidden until logged in) -->
+        <div id="appSection" class="hidden">
+            <!-- User Info -->
+            <div class="card">
+                <h2>Welcome, <span id="currentUser"></span>!</h2>
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Create Post -->
+            <div class="card">
+                <h2>Create Post</h2>
+                <div class="post-form">
+                    <textarea id="postContent" placeholder="What's on your mind?"></textarea>
+                    <button class="btn" onclick="createPost()">Post</button>
+                </div>
+                <div id="postMessage"></div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card">
+                <h2>Timeline</h2>
+                <button class="btn" onclick="loadTimeline()">Refresh Timeline</button>
+                <div id="timelineContainer" class="timeline">
+                    <div class="loading">Loading timeline...</div>
+                </div>
+            </div>
+
+            <!-- System Metrics -->
+            <div class="card">
+                <h2>System Metrics</h2>
+                <button class="btn btn-secondary" onclick="loadMetrics()">Refresh Metrics</button>
+                <div id="metricsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = localStorage.getItem('currentUser');
+
+        // Initialize
+        window.onload = function() {
+            if (authToken) {
+                showApp();
+                loadTimeline();
+                loadMetrics();
+            }
+        };
+
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+
+        async function signup() {
+            const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/signup`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, email, password})
+                });
+
+                if (response.ok) {
+                    showMessage('authMessage', 'Account created! Please login.', 'success');
+                } else {
+                    const error = await response.json();
+                    showMessage('authMessage', error.detail, 'error');
+                }
+            } catch (error) {
+                showMessage('authMessage', 'Connection error', 'error');
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    currentUser = username;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', currentUser);
+                    showApp();
+                    loadTimeline();
+                    loadMetrics();
+                } else {
+                    showMessage('authMessage', 'Invalid credentials', 'error');
+                }
+            } catch (error) {
+                showMessage('authMessage', 'Connection error', 'error');
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('hidden');
+        }
+
+        function showApp() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('currentUser').textContent = currentUser;
+        }
+
+        async function createPost() {
+            const content = document.getElementById('postContent').value;
+            
+            if (!content.trim()) {
+                showMessage('postMessage', 'Please enter some content', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({content})
+                });
+
+                if (response.ok) {
+                    document.getElementById('postContent').value = '';
+                    showMessage('postMessage', 'Post created!', 'success');
+                    setTimeout(() => loadTimeline(), 1000);
+                } else {
+                    showMessage('postMessage', 'Failed to create post', 'error');
+                }
+            } catch (error) {
+                showMessage('postMessage', 'Connection error', 'error');
+            }
+        }
+
+        async function loadTimeline() {
+            const container = document.getElementById('timelineContainer');
+            container.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/timeline`, {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.posts.length === 0) {
+                        container.innerHTML = '<div class="loading">No posts yet. Follow some users or create a post!</div>';
+                        return;
+                    }
+
+                    container.innerHTML = data.posts.map(post => `
+                        <div class="post">
+                            <div class="post-header">
+                                <span class="post-author">
+                                    ${post.author.username}
+                                    ${post.author.is_celebrity ? '<span class="celebrity-badge">⭐ Celebrity</span>' : ''}
+                                </span>
+                                <span class="post-date">${new Date(post.created_at).toLocaleString()}</span>
+                            </div>
+                            <div class="post-content">${post.content}</div>
+                        </div>
+                    `).join('');
+
+                    // Show source indicator
+                    const sourceMsg = data.source === 'cache' ? '⚡ Loaded from cache' : '💾 Loaded from database';
+                    container.insertAdjacentHTML('afterbegin', `<div class="message success">${sourceMsg}</div>`);
+                } else {
+                    container.innerHTML = '<div class="loading">Failed to load timeline</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="loading">Connection error</div>';
+            }
+        }
+
+        async function loadMetrics() {
+            try {
+                const [metricsRes, healthRes] = await Promise.all([
+                    fetch(`${API_BASE}/system/metrics`),
+                    fetch(`${API_BASE}/system/health`)
+                ]);
+
+                if (metricsRes.ok && healthRes.ok) {
+                    const metrics = await metricsRes.json();
+                    const health = await healthRes.json();
+
+                    document.getElementById('metricsContainer').innerHTML = `
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-value">${metrics.total_users}</div>
+                                <div class="metric-label">Users</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${metrics.total_posts}</div>
+                                <div class="metric-label">Posts</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${metrics.total_follows}</div>
+                                <div class="metric-label">Follows</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${metrics.celebrity_users}</div>
+                                <div class="metric-label">Celebrities</div>
+                            </div>
+                        </div>
+                        <div class="metrics" style="margin-top: 15px;">
+                            <div class="metric">
+                                <span class="status ${health.database}"></span>
+                                Database: ${health.database}
+                            </div>
+                            <div class="metric">
+                                <span class="status ${health.redis}"></span>
+                                Redis: ${health.redis}
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load metrics', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
